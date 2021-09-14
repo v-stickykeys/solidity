@@ -51,7 +51,7 @@ abstract contract SimpleAccessControl is Context {
      * @param account Ethereum account address.
      * @return True or false.
      */
-    function isAuthorized(address account) public view returns (bool) {
+    function isAuthorized(address account) public view virtual returns (bool) {
         return isController(account) || isAdmin(account);
     }
 
@@ -60,7 +60,7 @@ abstract contract SimpleAccessControl is Context {
      * @param account Ethereum account address.
      * @return True or false.
      */
-    function isAdmin(address account) public view returns (bool) {
+    function isAdmin(address account) public view virtual returns (bool) {
         return account == _admin;
     }
 
@@ -69,7 +69,7 @@ abstract contract SimpleAccessControl is Context {
      * @param account Ethereum account address.
      * @return True or false.
      */
-    function isController(address account) public view returns (bool) {
+    function isController(address account) public view virtual returns (bool) {
         return _controllers[account] == true;
     }
 
