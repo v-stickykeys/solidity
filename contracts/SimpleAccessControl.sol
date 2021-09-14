@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "./@openzeppelin/contracts/utils/Context.sol";
 import "./@openzeppelin/contracts/utils/Strings.sol";
+import "./IVersion.sol";
 
 /**
  * @title SimpleAccessControl
@@ -30,9 +31,7 @@ import "./@openzeppelin/contracts/utils/Strings.sol";
  * ===============
  * Extra precautions should be taken to secure the account set as `admin`.
  */
-abstract contract SimpleAccessControl is Context {
-    string public constant VERSION = "1.0.0";
-
+abstract contract SimpleAccessControl is IVersion, Context {
     address private _admin;
     mapping(address => bool) private _controllers;
 
@@ -44,6 +43,10 @@ abstract contract SimpleAccessControl is Context {
     modifier onlyAuthorized() {
         require(isAuthorized(_msgSender()), "SimpleAccessControl: 403");
         _;
+    }
+
+    function version() external pure virtual override returns (string memory) {
+        return "1.0.0";
     }
 
     /**

@@ -6,6 +6,7 @@ import "./@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "./@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "./@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Pausable.sol";
 import "./@openzeppelin/contracts/utils/Context.sol";
+import "./IVersion.sol";
 import "./SimpleAccessControl.sol";
 
 /**
@@ -17,8 +18,6 @@ import "./SimpleAccessControl.sol";
  */
 contract ERC1155MinterBurnerPauser is Context, SimpleAccessControl, ERC1155Burnable, ERC1155Pausable {
 
-    string public constant override VERSION = "1.0.0";
-
     /**
      * @notice Deploys an fungible and non-fungible token contract with metadata
      * stored at `uri`.
@@ -28,6 +27,10 @@ contract ERC1155MinterBurnerPauser is Context, SimpleAccessControl, ERC1155Burna
      */
     constructor(string memory uri) ERC1155(uri) {
         _setupAccessControl();
+    }
+
+    function version() external pure virtual override returns (string memory) {
+        return "1.0.0";
     }
 
     /**

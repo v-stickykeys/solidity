@@ -25,9 +25,11 @@ import "./SimpleAccessControl.sol";
 abstract contract SimpleAccessControlEnumerable is SimpleAccessControl {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    string public constant override VERSION = "1.0.0";
-
     EnumerableSet.AddressSet private _controllers;
+
+    function version() external pure virtual override returns (string memory) {
+        return "1.0.0";
+    }
     
     /**
      * @notice Returns true if an account address is a controller.
