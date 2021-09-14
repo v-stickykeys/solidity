@@ -11,12 +11,13 @@ import "./SimpleAccessControl.sol";
 /**
  * @title ERC1155MinterBurnerPauser
  * @author stickykeys.eth
- * @custom:version 1.0.0
  * @notice Implementation of a standard multi-token with minting, burning, and pausing.
  * @dev This contract is a derivative of OpenZeppelin's {ERC1155PresetMinterPauser}.
  * It uses simplified access control to keep gas low.
  */
 contract ERC1155MinterBurnerPauser is Context, SimpleAccessControl, ERC1155Burnable, ERC1155Pausable {
+
+    string public constant override VERSION = "1.0.0";
 
     /**
      * @notice Deploys an fungible and non-fungible token contract with metadata
