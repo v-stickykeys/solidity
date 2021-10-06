@@ -35,19 +35,36 @@ contract PushPaymentDivider is Ownable {
     /**
      * @notice Sets recipients and the percentage of each deposit sent to them.
      * @dev {_setupRecipients} is only used once--here, upon deployment.
-     * @param recipients Accounts to receive percentage of deposits.
-     * @param percentages Percentage of deposit each account should receive.
+     * @param recipients_ Accounts to receive percentage of deposits.
+     * @param percentages_ Percentage of deposit each account should receive.
      * Order matters.
      */
     constructor(
-        address payable[] memory recipients,
-        uint256[] memory percentages
+        address payable[] memory recipients_,
+        uint256[] memory percentages_
     ) {
-        _setupRecipients(recipients, percentages);
+        _setupRecipients(recipients_, percentages_);
     }
 
     function version() external pure virtual returns (string memory) {
         return "1.0.0";
+    }
+
+    /**
+     * @notice Returns the number of recipients each deposit is divided by.
+     * @return Number of recipients.
+     */
+    function recipients() public view returns (uint256) {
+        return _recipients;
+    }
+
+    /**
+     * @notice Returns recipient with the given id.
+     * @param id Integer.
+     * @return Ethereum account address.
+     */
+    function recipientById(uint256 id) public view returns (address) {
+        return _recipientsById[id];
     }
 
     /**
