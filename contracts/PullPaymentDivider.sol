@@ -6,9 +6,9 @@ import "./@openzeppelin/contracts/security/PullPayment.sol";
 import "./IVersion.sol";
 
 /**
- * @title PullPaymentSplitter
+ * @title PullPaymentDivider
  * @author stickykeys.eth
- * @notice Implementation of a "pull payment" that splits deposits amongst a
+ * @notice Implementation of a "pull payment" that divides deposits amongst a
  * trusted list of accounts.
  * @dev This contract is a derivative of OpenZeppelin's {PullPayment}. It
  * deploys an {Escrow} contract where funds get stored.
@@ -16,7 +16,7 @@ import "./IVersion.sol";
  * @custom:warning Avoid reentrancy vulnerabilities.
  *
  */
-contract PullPaymentSplitter is Context, PullPayment {
+contract PullPaymentDivider is Context, PullPayment {
     uint256 private _recipients;
 
     mapping(uint256 => address) private _recipientsById;
@@ -48,7 +48,7 @@ contract PullPaymentSplitter is Context, PullPayment {
     function deposit() external payable {
         require(
             msg.value > 0,
-            "PullPaymentSplitter: Not enough Ether provided"
+            "PullPaymentDivider: Not enough Ether provided"
         );
         for (uint256 i = 0; i < _recipients; i++) {
             uint256 amount = (msg.value * _percentagesById[i]) / 100;
@@ -71,7 +71,7 @@ contract PullPaymentSplitter is Context, PullPayment {
         uint256 change = changeByRecipient[recipient];
         require(
             change >= 100,
-            "PullPaymentSplitter: Not enough change to transfer"
+            "PullPaymentDivider: Not enough change to transfer"
         );
         changeByRecipient[recipient] = change % 100;
         _asyncTransfer(recipient, change / 100);
@@ -87,7 +87,7 @@ contract PullPaymentSplitter is Context, PullPayment {
      *
      * @custom:warning Recipient accounts should be trusted.
      *
-     * @param recipients Account addresses receiving a split of deposited funds.
+     * @param recipients Account addresses receiving a divide of deposited funds.
      * @param percentages Amounts for accounts at the same index in the
      * {recipients} parameter to allocate from deposited funds.
      */
@@ -97,24 +97,24 @@ contract PullPaymentSplitter is Context, PullPayment {
     ) internal {
         require(
             recipients.length == percentages.length,
-            "PullPaymentSplitter: Input lengths must match"
+            "PullPaymentDivider: Input lengths must match"
         );
         uint256 sum = 0;
         for (uint256 i = 0; i < recipients.length; i++) {
             require(
                 percentages[i] > 0,
-                "PullPaymentSplitter: Percentage must exceed 0"
+                "PullPaymentDivider: Percentage must exceed 0"
             );
             require(
                 percentages[i] <= 100,
-                "PullPaymentSplitter: Percentage must not exceed 100"
+                "PullPaymentDivider: Percentage must not exceed 100"
             );
             sum += percentages[i];
             _recipients += 1;
             _recipientsById[i] = recipients[i];
             _percentagesById[i] = percentages[i];
         }
-        require(sum == 100, "PullPaymentSplitter: Percentages must sum to 100");
+        require(sum == 100, "PullPaymentDivider: Percentages must sum to 100");
     }
 }
  
