@@ -127,9 +127,9 @@ contract PushPaymentDivider is Ownable {
      * @custom:require Input lengths must be equal. Order matters.
      * @custom:require Each percentage must be above 0 and below 100.
      * @custom:require The sum of all percentages must be 100.
-     * @param recipients Account addresses receiving a percentage of deposited
+     * @param recipients_ Account addresses receiving a percentage of deposited
      * funds.
-     * @param percentages Amounts for accounts at the same index in the
+     * @param percentages_ Amounts for accounts at the same index in the
      * {recipients} parameter to allocate from deposited funds.
      *
      * @custom:warning
@@ -137,27 +137,27 @@ contract PushPaymentDivider is Ownable {
      * Recipient accounts should be trusted.
      */
     function _setupRecipients(
-        address payable[] memory recipients,
-        uint256[] memory percentages
+        address payable[] memory recipients_,
+        uint256[] memory percentages_
     ) internal {
         require(
-            recipients.length == percentages.length,
+            recipients_.length == percentages_.length,
             "PushPaymentDivider: Input lengths must match"
         );
         uint256 sum = 0;
-        for (uint256 i = 0; i < recipients.length; i++) {
+        for (uint256 i = 0; i < recipients_.length; i++) {
             require(
-                percentages[i] > 0,
+                percentages_[i] > 0,
                 "PushPaymentDivider: Percentage must exceed 0"
             );
             require(
-                percentages[i] <= 100,
+                percentages_[i] <= 100,
                 "PushPaymentDivider: Percentage must not exceed 100"
             );
-            sum += percentages[i];
+            sum += percentages_[i];
             _recipients += 1;
-            _recipientsById[i] = recipients[i];
-            _percentagesByRecipient[_recipientsById[i]] = percentages[i];
+            _recipientsById[i] = recipients_[i];
+            _percentagesByRecipient[_recipientsById[i]] = percentages_[i];
         }
         require(sum == 100, "PushPaymentDivider: Percentages must sum to 100");
     }
