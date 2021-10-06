@@ -4,7 +4,7 @@ import { Contract } from "ethers";
 import { BigNumber } from "@ethersproject/bignumber";
 import { fail } from "assert";
 
-describe.only("PullPaymentSplitter", () => {
+describe("PullPaymentSplitter", () => {
     let contract: Contract;
     let recipients: Array<String>;
     let percentages: Array<BigNumber>;
