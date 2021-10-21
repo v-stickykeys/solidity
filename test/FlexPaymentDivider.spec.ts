@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import { BigNumber } from "@ethersproject/bignumber";
 
-describe("PushPaymentDivider", () => {
+describe("FlexPaymentDivider", () => {
     let contract: Contract;
     let recipients: Array<string>;
     let percentages: Array<BigNumber>;
@@ -22,19 +22,19 @@ describe("PushPaymentDivider", () => {
             BigNumber.from(6),
             BigNumber.from(54)
         ];
-        const Contract = await ethers.getContractFactory("PushPaymentDivider");
+        const Contract = await ethers.getContractFactory("FlexPaymentDivider");
         contract = await Contract.deploy(
             recipients,
             percentages
         );
     });
 
-    describe("deposit", () => {
+    describe("deposit (without safe mode)", () => {
         it("sends amount of Ether to each recipient based on percentage", async () => {
             let startingBalances = await Promise.all(recipients.map((recipient) => {
                 return ethers.provider.getBalance(recipient);
             }));
-            let tx = await contract.deposit({value: BigNumber.from(100)});
+            let tx = await contract.deposit(0, {value: BigNumber.from(100)});
             await tx.wait();
             let endingBalances = await Promise.all(recipients.map((recipient) => {
                 return ethers.provider.getBalance(recipient);
