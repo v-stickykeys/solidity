@@ -404,7 +404,7 @@ describe("FlexPaymentDivider Usage", () => {
 
             tx = await contract.deposit(1, {value: BigNumber.from(10)});
             await tx.wait();
-            tx = await contract.withdraw(cateAddress);
+            tx = await paymentHandler.withdraw(cateAddress);
             await tx.wait();
 
             const cateBalance3 = await ethers.provider.getBalance(cateAddress);

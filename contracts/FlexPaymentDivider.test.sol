@@ -23,10 +23,6 @@ contract FlexPaymentDividerTest {
         }
     }
 
-    function withdraw(address payable recipient) external {
-        _paymentHandler.withdraw(recipient);
-    }
-
     /**
      * @dev Called by the payer to send the amount to the payment handler
      * contract. Funds sent in this way are stored in an intermediate

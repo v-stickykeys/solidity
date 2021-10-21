@@ -17,14 +17,9 @@ import "./IVersion.sol";
  * Recipients MUST be trusted. If not, use {PullPaymentDivider} instead to
  * better avoid reentrancy and denial of service vulnerabilities.
  *
- * @dev This contract handles payments by restricting write access to the
- * contract that instatiates it. This way, it is guaranteed that all Ether will
- * be handled according to the {FlexPaymentDivider} rules, and there is no need
- * to check for payable functions or transfers in the inheritance tree. The
- * contract that uses the this to handle payments should be its owner, and
- * provide public methods redirecting to the deposit.
- * @dev This contract is named "Flex" because it can be used in a "Push" or
- * "Pull" method to send funds.
+ * @dev The contract that uses the this to handle payments should be its owner,
+ * and provide public methods redirecting to the deposit. This contract is named
+ * "Flex" because it can be used in a "Push" or "Pull" fashion to send funds.
  */
 contract FlexPaymentDivider is Ownable, IVersion {
     using Address for address payable;
@@ -167,7 +162,7 @@ contract FlexPaymentDivider is Ownable, IVersion {
      * sure you trust the recipient, or are either following the
      * checks-effects-interactions pattern or using {ReentrancyGuard}.
      */
-    function withdraw(address payable recipient) public onlyOwner {
+    function withdraw(address payable recipient) public {
         require(
             !isWithdrawing(_msgSender()),
             "FlexPaymentDivider: Can not reenter"
