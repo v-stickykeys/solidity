@@ -11,12 +11,8 @@ contract FlexPaymentDividerTest {
         _paymentHandler = new FlexPaymentDivider(recipients, percentages);
     }
 
-    function percentage(address recipient) public view returns (uint256) {
-        return _paymentHandler.percentage(recipient);
-    }
-
-    function accumulatedChange(address recipient) public view returns (uint256) {
-        return _paymentHandler.accumulatedChange(recipient);
+    function paymentHandler() external view returns (address) {
+        return address(_paymentHandler);
     }
 
     function deposit(uint8 safeMode) external payable {
