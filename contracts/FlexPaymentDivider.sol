@@ -29,10 +29,10 @@ import "./IVersion.sol";
 contract FlexPaymentDivider is Ownable {
     using Address for address payable;
 
-    uint256 private _recipients;
+    uint256 private _recipientCount;
     mapping(uint256 => address payable) private _recipientsById;
     mapping(address => uint256) private _percentagesByRecipient;
-    mapping(address => uint256) private _balanceByRecipient;
+    mapping(address => uint256) private _balancesByRecipient;
     mapping(address => uint256) private _changeByRecipient;
     // 0 = false, 1 = true
     mapping(address => uint8) private _isWithdrawingByAccount;
@@ -59,8 +59,8 @@ contract FlexPaymentDivider is Ownable {
      * @notice Returns the number of recipients each deposit is divided by.
      * @return Number of recipients.
      */
-    function recipients() public view returns (uint256) {
-        return _recipients;
+    function recipientCount() public view returns (uint256) {
+        return _recipientCount;
     }
 
     /**
@@ -87,7 +87,7 @@ contract FlexPaymentDivider is Ownable {
      * @return Amount of wei.
      */
     function accumulatedBalance(address recipient) public view returns (uint256) {
-        return _balanceByRecipient[recipient];
+        return _balancesByRecipient[recipient];
     }
 
     /**
@@ -100,32 +100,6 @@ contract FlexPaymentDivider is Ownable {
     }
 
     /**
-     * @notice Transfers to recipient their designated percentage of the Ether
-     * held in this contract.
-     * @custom:require Caller must not already be withdrawing.
-     * @custom:require Balance to withdraw must be above 0.
-     *
-     *
-     * @custom:warning
-     * ===============
-     * Forwarding all gas opens the door to reentrancy vulnerabilities. Make
-     * sure you trust the recipient, or are either following the
-     * checks-effects-interactions pattern or using {ReentrancyGuard}.
-     * 
-     */
-    function withdraw(address payable recipient) public {
-        require(!isWithdrawing(_msgSender()), "FlexPaymentDivider: Can not reenter");
-        _isWithdrawingByAccount[_msgSender()] = 1;
-
-        uint256 amount = _balanceByRecipient[recipient];
-        require(amount > 0, "FlexPaymentDivider: Insufficient funds");
-        _balanceByRecipient[recipient] = 0;
-        recipient.sendValue(amount);
-
-        _isWithdrawingByAccount[_msgSender()] = 0;
-    }
-
-    /**
      * @notice Increases balance for each recipient by their designated
      * percenatage of the Ether sent with this call.
      * @custom:require Caller must be owner.
@@ -133,21 +107,18 @@ contract FlexPaymentDivider is Ownable {
      * @dev Solidity rounds towards zero so we accumulate change here that is
      * transferred once it exceeds a fractional amount of wei.
      *
-     
-     *
      * @custom:warning
      * ===============
      * Forwarding all gas opens the door to reentrancy vulnerabilities. Make
      * sure you trust the recipient, or are either following the
      * checks-effects-interactions pattern or using {ReentrancyGuard}.
-     * 
      */
-    function deposit() public payable virtual onlyOwner {
+    function deposit() public payable onlyOwner {
         require(
             msg.value > 0,
             "FlexPaymentDivider: Insufficient message value"
         );
-        for (uint256 i = 0; i < _recipients; i++) {
+        for (uint256 i = 0; i < _recipientCount; i++) {
             address payable recipient = _recipientsById[i];
             uint256 change = (msg.value * _percentagesByRecipient[recipient]) % 100;
             uint256 amount = (msg.value * _percentagesByRecipient[recipient]) / 100;
@@ -157,7 +128,7 @@ contract FlexPaymentDivider is Ownable {
                 _changeByRecipient[recipient] = totalChange % 100;
                 amount += (totalChange / 100);
             }
-            _balanceByRecipient[recipient] += amount;
+            _balancesByRecipient[recipient] += amount;
         }
     }
 
@@ -168,7 +139,7 @@ contract FlexPaymentDivider is Ownable {
      *
      * @custom:warning
      * ===============
-     * A denial of service attack is possible if any of the _recipients revert.
+     * A denial of service attack is possible if any of the recipients revert.
      * The {withdraw} method can be used in the event of this attack.
      *
      * @custom:warning
@@ -176,13 +147,42 @@ contract FlexPaymentDivider is Ownable {
      * Forwarding all gas opens the door to reentrancy vulnerabilities. Make
      * sure you trust the recipient, or are either following the
      * checks-effects-interactions pattern or using {ReentrancyGuard}.
-     * 
      */
-    function disperse() public virtual onlyOwner {
-        for (uint256 i = 0; i < _recipients; i++) {
+    function disperse() public onlyOwner {
+        for (uint256 i = 0; i < _recipientCount; i++) {
             address payable recipient = _recipientsById[i];
             withdraw(recipient);
         }
+    }
+
+    /**
+     * @notice Transfers to recipient their designated percentage of the Ether
+     * held in this contract.
+     * @custom:require Caller must not already be withdrawing.
+     * @custom:require Balance to withdraw must be above 0.
+     *
+     * @custom:warning
+     * ===============
+     * Forwarding all gas opens the door to reentrancy vulnerabilities. Make
+     * sure you trust the recipient, or are either following the
+     * checks-effects-interactions pattern or using {ReentrancyGuard}.
+     */
+    function withdraw(address payable recipient) public onlyOwner {
+        require(
+            !isWithdrawing(_msgSender()),
+            "FlexPaymentDivider: Can not reenter"
+        );
+        _isWithdrawingByAccount[_msgSender()] = 1;
+
+        uint256 amount = _balancesByRecipient[recipient];
+        // IMPORTANT: Do not revert here so `disperse` can not have DoS when a
+        // recipient does not yet have a balance to withdraw.
+        if (amount > 0) {
+            _balancesByRecipient[recipient] = 0;
+            recipient.sendValue(amount);
+        }
+
+        _isWithdrawingByAccount[_msgSender()] = 0;
     }
 
     /* INTERNAL */
@@ -222,7 +222,7 @@ contract FlexPaymentDivider is Ownable {
                 "FlexPaymentDivider: Percentage must not exceed 100"
             );
             sum += percentages_[i];
-            _recipients += 1;
+            _recipientCount += 1;
             _recipientsById[i] = recipients_[i];
             _percentagesByRecipient[_recipientsById[i]] = percentages_[i];
         }
