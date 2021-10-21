@@ -8,29 +8,34 @@ import "./@openzeppelin/contracts/utils/Address.sol";
 import "./IVersion.sol";
 
 /**
- * @title PushPaymentDivider
+ * @title FlexPaymentDivider
  * @author stickykeys.eth
  * @notice Divides deposits amongst a trusted set of accounts.
  *
  * @custom:warning
  * ===============
  * Recipients MUST be trusted. If not, use {PullPaymentDivider} instead to
- * better avoid reentrancy vulnerabilities.
+ * better avoid reentrancy and denial of service vulnerabilities.
  *
  * @dev This contract handles payments by restricting write access to the
  * contract that instatiates it. This way, it is guaranteed that all Ether will
- * be handled according to the {PushPaymentDivider} rules, and there is no need
+ * be handled according to the {FlexPaymentDivider} rules, and there is no need
  * to check for payable functions or transfers in the inheritance tree. The
  * contract that uses the this to handle payments should be its owner, and
  * provide public methods redirecting to the deposit.
+ * @dev This contract is named "Flex" because it can be used in a "Push" or
+ * "Pull" method to send funds.
  */
-contract PushPaymentDivider is Ownable {
+contract FlexPaymentDivider is Ownable {
     using Address for address payable;
 
     uint256 private _recipients;
     mapping(uint256 => address payable) private _recipientsById;
     mapping(address => uint256) private _percentagesByRecipient;
+    mapping(address => uint256) private _balanceByRecipient;
     mapping(address => uint256) private _changeByRecipient;
+    // 0 = false, 1 = true
+    mapping(address => uint8) private _isWithdrawingByAccount;
 
     /**
      * @notice Sets recipients and the percentage of each deposit sent to them.
@@ -77,34 +82,70 @@ contract PushPaymentDivider is Ownable {
     }
 
     /**
+     * @notice Returns the balance the recipient has accumulated.
+     * @param recipient Ethereum account address.
+     * @return Amount of wei.
+     */
+    function accumulatedBalance(address recipient) public view returns (uint256) {
+        return _balanceByRecipient[recipient];
+    }
+
+    /**
      * @notice Returns the amount of change the recipient has accumulated.
      * @param recipient Ethereum account address.
      * @return Fraction of wei as an amount out of 100.
      */
-    function accumulatedChange(
-        address recipient
-    ) public view returns (uint256) {
+    function accumulatedChange(address recipient) public view returns (uint256) {
         return _changeByRecipient[recipient];
     }
 
     /**
-     * @notice Transfers to each recipient their designated percenatage of the
-     * Ether sent with this call.
-     * @custom:require Caller must be owner.
-     * @custom:require Message value must be greater than 0.
-     * @dev Solidity rounds towards zero so we accumulate change here to be
-     * transferred once it exceeds a fractional amount of wei.
+     * @notice Transfers to recipient their designated percentage of the Ether
+     * held in this contract.
+     * @custom:require Caller must not already be withdrawing.
+     * @custom:require Balance to withdraw must be above 0.
+     *
      *
      * @custom:warning
      * ===============
      * Forwarding all gas opens the door to reentrancy vulnerabilities. Make
      * sure you trust the recipient, or are either following the
      * checks-effects-interactions pattern or using {ReentrancyGuard}.
+     * 
+     */
+    function withdraw(address payable recipient) public {
+        require(!isWithdrawing(_msgSender()), "FlexPaymentDivider: Can not reenter");
+        _isWithdrawingByAccount[_msgSender()] = 1;
+
+        uint256 amount = _balanceByRecipient[recipient];
+        require(amount > 0, "FlexPaymentDivider: Insufficient funds");
+        _balanceByRecipient[recipient] = 0;
+        recipient.sendValue(amount);
+
+        _isWithdrawingByAccount[_msgSender()] = 0;
+    }
+
+    /**
+     * @notice Increases balance for each recipient by their designated
+     * percenatage of the Ether sent with this call.
+     * @custom:require Caller must be owner.
+     * @custom:require Message value must be greater than 0.
+     * @dev Solidity rounds towards zero so we accumulate change here that is
+     * transferred once it exceeds a fractional amount of wei.
+     *
+     
+     *
+     * @custom:warning
+     * ===============
+     * Forwarding all gas opens the door to reentrancy vulnerabilities. Make
+     * sure you trust the recipient, or are either following the
+     * checks-effects-interactions pattern or using {ReentrancyGuard}.
+     * 
      */
     function deposit() public payable virtual onlyOwner {
         require(
             msg.value > 0,
-            "PushPaymentDivider: Not enough Ether provided"
+            "FlexPaymentDivider: Insufficient message value"
         );
         for (uint256 i = 0; i < _recipients; i++) {
             address payable recipient = _recipientsById[i];
@@ -116,9 +157,35 @@ contract PushPaymentDivider is Ownable {
                 _changeByRecipient[recipient] = totalChange % 100;
                 amount += (totalChange / 100);
             }
-            recipient.sendValue(amount);
+            _balanceByRecipient[recipient] += amount;
         }
     }
+
+    /**
+     * @notice Transfers to each recipient their designated percenatage of the
+     * Ether held by this contract.
+     * @custom:require Caller must be owner.
+     *
+     * @custom:warning
+     * ===============
+     * A denial of service attack is possible if any of the _recipients revert.
+     * The {withdraw} method can be used in the event of this attack.
+     *
+     * @custom:warning
+     * ===============
+     * Forwarding all gas opens the door to reentrancy vulnerabilities. Make
+     * sure you trust the recipient, or are either following the
+     * checks-effects-interactions pattern or using {ReentrancyGuard}.
+     * 
+     */
+    function disperse() public virtual onlyOwner {
+        for (uint256 i = 0; i < _recipients; i++) {
+            address payable recipient = _recipientsById[i];
+            withdraw(recipient);
+        }
+    }
+
+    /* INTERNAL */
 
     /**
      * @dev Sets mappings for recipients and respective percentages.
@@ -142,24 +209,28 @@ contract PushPaymentDivider is Ownable {
     ) internal {
         require(
             recipients_.length == percentages_.length,
-            "PushPaymentDivider: Input lengths must match"
+            "FlexPaymentDivider: Unequal input lengths"
         );
         uint256 sum = 0;
         for (uint256 i = 0; i < recipients_.length; i++) {
             require(
                 percentages_[i] > 0,
-                "PushPaymentDivider: Percentage must exceed 0"
+                "FlexPaymentDivider: Percentage must exceed 0"
             );
             require(
                 percentages_[i] <= 100,
-                "PushPaymentDivider: Percentage must not exceed 100"
+                "FlexPaymentDivider: Percentage must not exceed 100"
             );
             sum += percentages_[i];
             _recipients += 1;
             _recipientsById[i] = recipients_[i];
             _percentagesByRecipient[_recipientsById[i]] = percentages_[i];
         }
-        require(sum == 100, "PushPaymentDivider: Percentages must sum to 100");
+        require(sum == 100, "FlexPaymentDivider: Percentages must sum to 100");
+    }
+
+    function isWithdrawing(address account) internal view returns (bool) {
+        return _isWithdrawingByAccount[account] == 1;
     }
 }
  
