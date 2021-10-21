@@ -26,7 +26,7 @@ import "./IVersion.sol";
  * @dev This contract is named "Flex" because it can be used in a "Push" or
  * "Pull" method to send funds.
  */
-contract FlexPaymentDivider is Ownable {
+contract FlexPaymentDivider is Ownable, IVersion {
     using Address for address payable;
 
     uint256 private _recipientCount;
@@ -51,7 +51,7 @@ contract FlexPaymentDivider is Ownable {
         _setupRecipients(recipients_, percentages_);
     }
 
-    function version() external pure virtual returns (string memory) {
+    function version() external pure override returns (string memory) {
         return "1.0.0";
     }
 
