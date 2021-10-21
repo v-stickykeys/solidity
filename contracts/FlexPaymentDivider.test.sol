@@ -16,11 +16,10 @@ contract FlexPaymentDividerTest {
     }
 
     function deposit(uint8 safeMode) external payable {
-        if (safeMode == 0) { // 0 = false
+        if (safeMode > 0) { // >0 = true, 0 = false
             _deposit(msg.value);
         } else {
-            _deposit(msg.value);
-            _disperse();
+            _depositAndDisperse(msg.value);
         }
     }
 
@@ -36,7 +35,8 @@ contract FlexPaymentDividerTest {
         _paymentHandler.deposit{value: amount}();
     }
 
-    function _disperse() internal virtual {
+    function _depositAndDisperse(uint256 amount) internal virtual {
+        _deposit(amount);
         _paymentHandler.disperse();
     }
 }
