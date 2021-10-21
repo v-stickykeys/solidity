@@ -375,4 +375,67 @@ describe("FlexPaymentDivider Usage", () => {
             ).to.equal(BigNumber.from(20));
         });
     });
+
+    describe("withdraw after safe mode deposit", () => {
+        it("sends accumulated balance and holds change", async () => {
+            const cateAddress = recipients[2];
+
+            const cateBalance1 = await ethers.provider.getBalance(cateAddress);
+            const contractBalance1 = await ethers.provider.getBalance(paymentHandler.address);
+
+            let tx = await contract.deposit(1, {value: BigNumber.from(10)});
+            await tx.wait();
+
+            const cateBalance2 = await paymentHandler.accumulatedBalance(cateAddress);
+            const contractBalance2 = await ethers.provider.getBalance(paymentHandler.address);
+
+            expect(
+                await paymentHandler.accumulatedBalance(cateAddress),
+                "Cate does not accumulate a balance upon the first deposit"
+            ).to.equal(BigNumber.from(0));
+            expect(
+                await paymentHandler.accumulatedChange(cateAddress),
+                "Cate's accumulated change is set"
+            ).to.equal(percentages[2].mul(10));
+            expect(
+                contractBalance2.sub(contractBalance1),
+                "The paymentHandler stores the total value to later be divided amongst recipients"
+            ).to.equal(BigNumber.from(10));
+
+            tx = await contract.deposit(1, {value: BigNumber.from(10)});
+            await tx.wait();
+            tx = await contract.withdraw(cateAddress);
+            await tx.wait();
+
+            const cateBalance3 = await ethers.provider.getBalance(cateAddress);
+            const contractBalance3 = await ethers.provider.getBalance(paymentHandler.address);
+
+            let endingBalances = await Promise.all(recipients.map((recipient) => {
+                return paymentHandler.accumulatedBalance(recipient);
+            }));
+            let endingBalancesSum = endingBalances.reduce((prev, curr) => {
+                return prev.add(curr)
+            });
+            let endingChange = await Promise.all(recipients.map((recipient) => {
+                return paymentHandler.accumulatedChange(recipient);
+            }));
+            let endingChangeSum = endingChange.reduce((prev, curr) => {
+                return prev.add(curr)
+            });
+
+            expect(
+                cateBalance3.sub(cateBalance1),
+                "The change over 100 and previous balance gets transferred to Cate"
+            ).to.equal(BigNumber.from(1).add(cateBalance2));
+            expect(
+                contractBalance3,
+                "The paymentHandler balance is the sum of the change and remaining balances"
+            ).to.equal(endingChangeSum.div(100).add(endingBalancesSum));
+
+            expect(
+                await paymentHandler.accumulatedChange(cateAddress),
+                "Cate still has some change remaining"
+            ).to.equal(BigNumber.from(20));
+        });
+    });
 });
