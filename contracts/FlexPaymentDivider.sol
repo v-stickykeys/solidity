@@ -19,7 +19,7 @@ import "./IVersion.sol";
  *
  * @dev The contract that uses the this to handle payments should be its owner,
  * and provide public methods redirecting to the deposit. This contract is named
- * "Flex" because it can be used in a "Push" or "Pull" fashion to send funds.
+ * "Flex" because it can be used in a "Push" and "Pull" fashion to send funds.
  */
 contract FlexPaymentDivider is Ownable, IVersion {
     using Address for address payable;
@@ -29,8 +29,7 @@ contract FlexPaymentDivider is Ownable, IVersion {
     mapping(address => uint256) private _percentagesByRecipient;
     mapping(address => uint256) private _balancesByRecipient;
     mapping(address => uint256) private _changeByRecipient;
-    // 0 = false, 1 = true
-    mapping(address => uint8) private _isWithdrawingByAccount;
+    mapping(address => bool) private _isWithdrawingByAccount;
 
     /**
      * @notice Sets recipients and the percentage of each deposit sent to them.
@@ -47,14 +46,14 @@ contract FlexPaymentDivider is Ownable, IVersion {
     }
 
     function version() external pure override returns (string memory) {
-        return "1.0.0";
+        return "1.1.0";
     }
 
     /**
      * @notice Returns the number of recipients each deposit is divided by.
      * @return Number of recipients.
      */
-    function recipientCount() public view returns (uint256) {
+    function recipientCount() external view returns (uint256) {
         return _recipientCount;
     }
 
@@ -63,7 +62,7 @@ contract FlexPaymentDivider is Ownable, IVersion {
      * @param id Integer.
      * @return Ethereum account address.
      */
-    function recipientById(uint256 id) public view returns (address) {
+    function recipientById(uint256 id) external view returns (address) {
         return _recipientsById[id];
     }
 
@@ -72,7 +71,7 @@ contract FlexPaymentDivider is Ownable, IVersion {
      * @param recipient Ethereum account address.
      * @return Amount of 100.
      */
-    function percentage(address recipient) public view returns (uint256) {
+    function percentage(address recipient) external view returns (uint256) {
         return _percentagesByRecipient[recipient];
     }
 
@@ -81,7 +80,7 @@ contract FlexPaymentDivider is Ownable, IVersion {
      * @param recipient Ethereum account address.
      * @return Amount of wei.
      */
-    function accumulatedBalance(address recipient) public view returns (uint256) {
+    function accumulatedBalance(address recipient) external view returns (uint256) {
         return _balancesByRecipient[recipient];
     }
 
@@ -90,13 +89,13 @@ contract FlexPaymentDivider is Ownable, IVersion {
      * @param recipient Ethereum account address.
      * @return Fraction of wei as an amount out of 100.
      */
-    function accumulatedChange(address recipient) public view returns (uint256) {
+    function accumulatedChange(address recipient) external view returns (uint256) {
         return _changeByRecipient[recipient];
     }
 
     /**
      * @notice Increases balance for each recipient by their designated
-     * percenatage of the Ether sent with this call.
+     * percentage of the Ether sent with this call.
      * @custom:require Caller must be owner.
      * @custom:require Message value must be greater than 0.
      * @dev Solidity rounds towards zero so we accumulate change here that is
@@ -143,7 +142,7 @@ contract FlexPaymentDivider is Ownable, IVersion {
      * sure you trust the recipient, or are either following the
      * checks-effects-interactions pattern or using {ReentrancyGuard}.
      */
-    function disperse() public onlyOwner {
+    function disperse() external onlyOwner {
         for (uint256 i = 0; i < _recipientCount; i++) {
             address payable recipient = _recipientsById[i];
             withdraw(recipient);
@@ -167,7 +166,7 @@ contract FlexPaymentDivider is Ownable, IVersion {
             !isWithdrawing(_msgSender()),
             "FlexPaymentDivider: Can not reenter"
         );
-        _isWithdrawingByAccount[_msgSender()] = 1;
+        _isWithdrawingByAccount[_msgSender()] = true;
 
         uint256 amount = _balancesByRecipient[recipient];
         // IMPORTANT: Do not revert here so `disperse` can not have DoS when a
@@ -177,7 +176,7 @@ contract FlexPaymentDivider is Ownable, IVersion {
             recipient.sendValue(amount);
         }
 
-        _isWithdrawingByAccount[_msgSender()] = 0;
+        _isWithdrawingByAccount[_msgSender()] = false;
     }
 
     /* INTERNAL */
@@ -225,7 +224,7 @@ contract FlexPaymentDivider is Ownable, IVersion {
     }
 
     function isWithdrawing(address account) internal view returns (bool) {
-        return _isWithdrawingByAccount[account] == 1;
+        return _isWithdrawingByAccount[account];
     }
 }
  
