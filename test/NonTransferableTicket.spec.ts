@@ -378,4 +378,42 @@ describe("NonTransferableTicket", () => {
             }
         });
     });
+
+    describe("setRedeemable", () => {
+        it("can make ticket redeemable", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            const redeemableTrue = true;
+            const redeemableFalse = false;
+
+            const amount = 1;
+            let tx = await contract.addTickets(amount);
+            await tx.wait();
+            const ticketId = amount;
+
+            let isRedeemable = await contract.isRedeemable(ticketId);
+            expect(
+                isRedeemable,
+                "False because newly added tickets are not redeemable by default"
+            ).to.be.false;
+
+            await contract.setRedeemable(ticketId, redeemableTrue);
+            await tx.wait();
+
+            isRedeemable = await contract.isRedeemable(ticketId);
+            expect(
+                isRedeemable,
+                "True because ticket was set to redeemable"
+            ).to.be.true;
+
+            await contract.setRedeemable(ticketId, redeemableFalse);
+            await tx.wait();
+
+            isRedeemable = await contract.isRedeemable(ticketId);
+            expect(
+                isRedeemable,
+                "False because ticket was set to not redeemable"
+            ).to.be.false;
+        });
+    });
 });
