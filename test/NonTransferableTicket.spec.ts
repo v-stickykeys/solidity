@@ -169,5 +169,119 @@ describe("NonTransferableTicket", () => {
                 ).to.equal(beni.address);
             }
         });
+        it("does not make tickets redeemable", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            const amount = 11;
+            let tx = await contract.addTicketsAndDeliver(beni.address, amount);
+            await tx.wait();
+
+            for (let index = 1; index < amount + 1; index++) {
+                const isRedeemable = await contract.isRedeemable(index);
+                expect(
+                    isRedeemable,
+                    "Ticket is not redeemable"
+                ).to.be.false;
+            }
+        });
+    });
+
+    describe("addRedeemableTicketsAndDeliver", () => {
+        it("reverts if caller is not owner", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+            const amount = 4;
+            await expect(
+                contract.connect(aloe).addRedeemableTicketsAndDeliver(
+                    aloe.address,
+                    amount,
+                    true
+                ),
+                "Reverts if caller is not owner"
+            ).to.be.revertedWith("Ownable: caller is not the owner");
+        });
+        it("does not change totalRemaining", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            const redeemable = true;
+            let remaining1 = await contract.totalRemaining();
+            expect(
+                remaining1.toString(),
+                "Remaining starts at 0 before we add tickets"
+            ).to.equal("0");
+
+            const amount = 4;
+            let tx = await contract.addRedeemableTicketsAndDeliver(aloe.address, amount, redeemable);
+            await tx.wait();
+            let remaining2 = await contract.totalRemaining();
+            expect(
+                remaining2.toString(),
+                "Remaining ends where we started"
+            ).to.equal(remaining1.toString());
+        });
+        it("increases quantityHeldBy of holder", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            const redeemable = true;
+            let quantity = await contract.quantityHeldBy(aloe.address);
+            expect(
+                quantity.toString(),
+                "Quantity starts at 0 before delivery"
+            ).to.equal("0");
+
+            const amount = 1;
+            let tx = await contract.addRedeemableTicketsAndDeliver(aloe.address, amount, redeemable);
+            await tx.wait();
+
+            quantity = await contract.quantityHeldBy(aloe.address);
+            expect(
+                quantity.toString(),
+                "Quantity increases by amount delivered"
+            ).to.equal(amount.toString());
+        });
+        it("assigns `holder` for `ticketId`", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            const redeemable = true;
+            const amount = 11;
+            let tx = await contract.addRedeemableTicketsAndDeliver(beni.address, amount, redeemable);
+            await tx.wait();
+
+            for (let index = 1; index < amount + 1; index++) {
+                const holder = await contract.holderOf(index);
+                expect(
+                    holder,
+                    "Ticket holder is Beni"
+                ).to.equal(beni.address);
+            }
+        });
+        it("can make tickets redeemable", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            const redeemable1 = true;
+            const amount1 = 11;
+            let tx = await contract.addRedeemableTicketsAndDeliver(beni.address, amount1, redeemable1);
+            await tx.wait();
+
+            for (let index = 1; index < amount1 + 1; index++) {
+                const isRedeemable = await contract.isRedeemable(index);
+                expect(
+                    isRedeemable,
+                    "Ticket is redeemable"
+                ).to.be.true;
+            }
+
+            const redeemable2 = false;
+            const amount2 = 11;
+            tx = await contract.addRedeemableTicketsAndDeliver(beni.address, amount2, redeemable2);
+            await tx.wait();
+
+            for (let index = amount1 + 1; index < amount2; index++) {
+                const isRedeemable = await contract.isRedeemable(index);
+                expect(
+                    isRedeemable,
+                    "False because ticket is not redeemable"
+                ).to.be.false;
+            }
+        });
     });
 });
