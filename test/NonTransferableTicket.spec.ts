@@ -108,6 +108,100 @@ describe("NonTransferableTicket", () => {
         });
     });
 
+    describe("deliverRedeemable", () => {
+        it("reverts if caller is not owner", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+            const redeemable = true;
+            const amount = 4;
+            await expect(
+                contract.connect(aloe).deliverRedeemable(aloe.address, amount, redeemable),
+                "Reverts if caller is not owner"
+            ).to.be.revertedWith("Ownable: caller is not the owner");
+        });
+        it("reverts if ticketId does not exist", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+            const redeemable = true;
+            const amount = 4;
+            await expect(
+                contract.deliverRedeemable(aloe.address, amount, redeemable),
+                "Reverts before ticket id is added"
+            ).to.be.revertedWith("NTT: Ticket does not exist");
+        });
+        it("increases quantityHeldBy of holder", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            let quantity = await contract.quantityHeldBy(aloe.address);
+            expect(
+                quantity.toString(),
+                "Quantity starts at 0 before delivery"
+            ).to.equal("0");
+
+            const redeemable = true;
+            const amount = 1;
+            let tx = await contract.addTickets(amount);
+            await tx.wait();
+            tx = await contract.deliverRedeemable(aloe.address, amount, redeemable);
+            await tx.wait();
+
+            quantity = await contract.quantityHeldBy(aloe.address);
+            expect(
+                quantity.toString(),
+                "Quantity increases by amount delivered"
+            ).to.equal(amount.toString());
+        });
+        it("assigns `holder` for `ticketId`", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            const redeemable = true;
+            const amount = 11;
+            let tx = await contract.addTickets(amount);
+            await tx.wait();
+            tx = await contract.deliverRedeemable(beni.address, amount, redeemable);
+            await tx.wait();
+
+            for (let index = 1; index < amount + 1; index++) {
+                const holder = await contract.holderOf(index);
+                expect(
+                    holder,
+                    "Ticket holder is Beni"
+                ).to.equal(beni.address);
+            }
+        });
+        it("can make tickets redeemable", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            const redeemable1 = false;
+            const amount1 = 11;
+            let tx = await contract.addTickets(amount1);
+            await tx.wait();
+            tx = await contract.deliverRedeemable(beni.address, amount1, redeemable1);
+            await tx.wait();
+
+            for (let index = 1; index < amount1 + 1; index++) {
+                const isRedeemable = await contract.isRedeemable(index);
+                expect(
+                    isRedeemable,
+                    "False because ticket is not redeemable"
+                ).to.be.false;
+            }
+
+            const redeemable2 = true;
+            const amount2 = 11;
+            tx = await contract.addTickets(amount2);
+            await tx.wait();
+            tx = await contract.deliverRedeemable(beni.address, amount2, redeemable2);
+            await tx.wait();
+
+            for (let index = amount1 + 1; index < amount2; index++) {
+                const isRedeemable = await contract.isRedeemable(index);
+                expect(
+                    isRedeemable,
+                    "True because ticket is redeemable"
+                ).to.be.true;
+            }
+        });
+    });
+
     describe("addTicketsAndDeliver", () => {
         it("reverts if caller is not owner", async () => {
             const [deployer, aloe, beni] = await ethers.getSigners();
