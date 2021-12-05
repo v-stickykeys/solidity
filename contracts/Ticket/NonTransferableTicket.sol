@@ -21,7 +21,8 @@ contract NonTransferableTicket is
     string private _name;
     address private _issuer;
 
-    uint256 private _ticketsIssued;
+    uint256 private _ticketsAdded;
+    uint256 private _ticketsDelivered;
     uint256 private _ticketsRedeemed;
     string private _baseTicketURI;
     mapping(address => uint256) private _quantityHeldBy;
@@ -29,7 +30,9 @@ contract NonTransferableTicket is
     mapping(uint256 => bool) private _wasRedeemed;
     mapping(uint256 => bool) private _isRedeemable;
 
+    // TODO: Should there be an event for each individual ticket added?
     event TicketsAdded(uint256 indexed amount);
+    event Redeemable(address indexed redeemer, uint256 indexed ticketId);
 
     constructor(string memory name_, address issuer_) {
         _name = name_;
@@ -64,7 +67,7 @@ contract NonTransferableTicket is
      */
     function totalRemaining() external view override returns (uint256) {
         // TODO: Does the built-in safeMath revert if this is negative?
-        return _ticketsIssued - _ticketsRedeemed;
+        return _ticketsAdded - _ticketsDelivered;
     }
 
     /**
@@ -86,24 +89,25 @@ contract NonTransferableTicket is
     }
 
     function addTickets(uint256 amount) public onlyOwner returns (bool) {
-        _ticketsIssued += amount;
+        _ticketsAdded += amount;
+        // TODO: Should we emit an event with each ticket id here?
         emit TicketsAdded(amount);
         return true;
     }
 
-    function issue(address holder, uint256 amount) external onlyOwner {
+    function deliver(address holder, uint256 amount) external onlyOwner {
         for (uint256 i = 0; i < amount; i++) {
-            (bool success) = _issueTo(holder, _ticketsIssued + i + 1);
-            require(success, "NTT: Failed to issue");
+            uint256 ticketId = _ticketsDelivered + i + 1;
+            assert(_exists(ticketId));
+            _holderOf[ticketId] = holder;
         }
-        // Leave state changes outside of loops when possible for gas efficiency.
+        _ticketsDelivered += amount;
+        _quantityHeldBy[holder] += amount;
     }
 
-    function _issueTo(address holder, uint256 ticketId) internal returns (bool) {
-        assert(!_exists(ticketId));
-        _holderOf[ticketId] = holder;
+    function setRedeemable(uint256 ticketId) public onlyOwner {
         _isRedeemable[ticketId] = true;
-        return true;
+        emit Redeemable(_msgSender(), ticketId);
     }
 
     /**
@@ -120,7 +124,7 @@ contract NonTransferableTicket is
     }
 
     function _exists(uint256 ticketId) internal view returns (bool) {
-        return ticketId < _ticketsIssued;
+        return ticketId <= _ticketsAdded;
     }
 
     /**

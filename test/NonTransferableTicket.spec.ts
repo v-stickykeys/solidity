@@ -51,17 +51,26 @@ describe("NonTransferableTicket", () => {
         });
     });
 
-    describe("issue", () => {
-        it("increases ticketsIssu", async () => {
+    describe("deliver", () => {
+        // it("reverts if caller is not owner", async () => {
+        // it("reverts if ticketId does not exist", async () => {
+        // it("increases quantityHeldBy of holder", async () => {
+        it("assigns `holder` for `ticketId`", async () => {
             const [deployer, aloe, beni] = await ethers.getSigners();
-            expect(
-                true,
-                "Message"
-            ).to.be.false;
-            await expect(
-                true,
-                "Message"
-            ).to.be.revertedWith("Ownable: caller is not the owner");
+
+            const amount = 11;
+            let tx = await contract.addTickets(amount);
+            await tx.wait();
+            tx = await contract.deliver(beni.address, amount);
+            await tx.wait();
+
+            for (let index = 1; index < amount + 1; index++) {
+                const holder = await contract.holderOf(index);
+                expect(
+                    holder,
+                    "Ticket holder is Beni"
+                ).to.equal(beni.address);
+            }
         });
     });
 });
