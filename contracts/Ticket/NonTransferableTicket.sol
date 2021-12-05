@@ -32,7 +32,7 @@ contract NonTransferableTicket is
 
     // TODO: Should there be an event for each individual ticket added?
     event TicketsAdded(uint256 indexed amount);
-    event Redeemable(address indexed redeemer, uint256 indexed ticketId);
+    event Redeemable(address indexed redeemer, uint256 indexed ticketId, bool redeemable);
 
     constructor(string memory name_, address issuer_) {
         _name = name_;
@@ -84,30 +84,71 @@ contract NonTransferableTicket is
         return _holderOf[ticketId];
     }
 
-    function canRedeem(address account, uint256 ticketId) external view returns(bool) {
+    function canRedeem(
+        address account,
+        uint256 ticketId
+    ) external view returns (bool) {
         return _canRedeem(account, ticketId);
     }
 
-    function addTickets(uint256 amount) public onlyOwner returns (bool) {
+    function isRedeemable(uint256 ticketId) external view returns (bool) {
+        return _isRedeemable[ticketId];
+    }
+
+    function addTicketsAndDeliver(
+        address holder,
+        uint256 amount
+    ) external onlyOwner {
+        addRedeemableTicketsAndDeliver(holder, amount, false);
+    }
+
+    function addRedeemableTicketsAndDeliver(
+        address holder,
+        uint256 amount,
+        bool redeemable
+    ) public onlyOwner {
+        addTickets(amount);
+        _deliver(holder, amount, redeemable);
+    }
+
+    function addTickets(uint256 amount) public onlyOwner {
         _ticketsAdded += amount;
         // TODO: Should we emit an event with each ticket id here?
         emit TicketsAdded(amount);
-        return true;
     }
 
     function deliver(address holder, uint256 amount) external onlyOwner {
+        _deliver(holder, amount, false);
+    }
+
+    function deliverRedeemable(
+        address holder,
+        uint256 amount,
+        bool redeemable
+    ) external onlyOwner {
+        _deliver(holder, amount, redeemable);
+    }
+
+    function setRedeemable(uint256 ticketId, bool redeemable) external onlyOwner {
+        _setRedeemable(ticketId, redeemable);
+    }
+
+    function _deliver(address holder, uint256 amount, bool redeemable) internal {
         for (uint256 i = 0; i < amount; i++) {
             uint256 ticketId = _ticketsDelivered + i + 1;
-            assert(_exists(ticketId));
+            require(_exists(ticketId), "NTT: Ticket does not exist");
             _holderOf[ticketId] = holder;
+            if (redeemable) {
+                _setRedeemable(ticketId, redeemable);
+            }
         }
         _ticketsDelivered += amount;
         _quantityHeldBy[holder] += amount;
     }
 
-    function setRedeemable(uint256 ticketId) public onlyOwner {
-        _isRedeemable[ticketId] = true;
-        emit Redeemable(_msgSender(), ticketId);
+    function _setRedeemable(uint256 ticketId, bool redeemable) internal {
+        _isRedeemable[ticketId] = redeemable;
+        emit Redeemable(_msgSender(), ticketId, redeemable);
     }
 
     /**
