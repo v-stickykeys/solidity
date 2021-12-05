@@ -107,4 +107,67 @@ describe("NonTransferableTicket", () => {
             }
         });
     });
+
+    describe("addTicketsAndDeliver", () => {
+        it("reverts if caller is not owner", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+            const amount = 4;
+            await expect(
+                contract.connect(aloe).addTicketsAndDeliver(aloe.address, amount),
+                "Reverts if caller is not owner"
+            ).to.be.revertedWith("Ownable: caller is not the owner");
+        });
+        it("does not change totalRemaining", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            let remaining1 = await contract.totalRemaining();
+            expect(
+                remaining1.toString(),
+                "Remaining starts at 0 before we add tickets"
+            ).to.equal("0");
+
+            const amount = 4;
+            let tx = await contract.addTicketsAndDeliver(aloe.address, amount);
+            await tx.wait();
+            let remaining2 = await contract.totalRemaining();
+            expect(
+                remaining2.toString(),
+                "Remaining ends where we started"
+            ).to.equal(remaining1.toString());
+        });
+        it("increases quantityHeldBy of holder", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            let quantity = await contract.quantityHeldBy(aloe.address);
+            expect(
+                quantity.toString(),
+                "Quantity starts at 0 before delivery"
+            ).to.equal("0");
+
+            const amount = 1;
+            let tx = await contract.addTicketsAndDeliver(aloe.address, amount);
+            await tx.wait();
+
+            quantity = await contract.quantityHeldBy(aloe.address);
+            expect(
+                quantity.toString(),
+                "Quantity increases by amount delivered"
+            ).to.equal(amount.toString());
+        });
+        it("assigns `holder` for `ticketId`", async () => {
+            const [deployer, aloe, beni] = await ethers.getSigners();
+
+            const amount = 11;
+            let tx = await contract.addTicketsAndDeliver(beni.address, amount);
+            await tx.wait();
+
+            for (let index = 1; index < amount + 1; index++) {
+                const holder = await contract.holderOf(index);
+                expect(
+                    holder,
+                    "Ticket holder is Beni"
+                ).to.equal(beni.address);
+            }
+        });
+    });
 });
